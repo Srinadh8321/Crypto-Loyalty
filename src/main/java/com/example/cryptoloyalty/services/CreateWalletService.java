@@ -4,17 +4,22 @@ import com.example.cryptoloyalty.entity.WalletEntity;
 import com.example.cryptoloyalty.repositories.WalletRepository;
 import com.example.cryptoloyalty.util.Constants;
 import com.example.cryptoloyalty.util.Issuancereq;
+import com.example.wallet.contracts.OCCoin;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
+import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
+import org.web3j.tx.gas.DefaultGasProvider;
+
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -33,17 +38,27 @@ public class CreateWalletService {
     private final WalletRepository repo;
     private final KeyEncryptionService crypto;
     private final ERC20Client erc20;
+    private final OCCoinClient ocCoinClient;
     private String privateKeyHex;
     private final Logger logger= LoggerFactory.getLogger(CreateWalletService.class);
+    private static final String CONTRACT = "0x6f6212601cce704a81B201D9Fe0E6CBEc1A3C194";
+
+
+    @Autowired
+    private Web3j web3j;
+
+
+
 
     public CreateWalletService(
             WalletRepository repo,
             KeyEncryptionService crypto,
-            ERC20Client erc20
+            ERC20Client erc20, OCCoinClient ocCoinClient
     ) {
         this.repo = repo;
         this.crypto = crypto;
         this.erc20 = erc20;
+        this.ocCoinClient = ocCoinClient;
     }
 
     // CREATE WALLET
@@ -224,6 +239,34 @@ public class CreateWalletService {
         }
         return false;
     }
+
+    public TransactionReceipt mint(
+            String toAddress,
+            BigInteger amount
+    ) throws Exception {
+
+        return ocCoinClient.adminMint(Constants.priavteKey,
+                toAddress,
+                amount);
+    }
+
+    public TransactionReceipt mine(String toAddress) throws Exception {
+        WalletEntity toWallet =
+                repo.findByWalletAddress(toAddress.toLowerCase()).orElseThrow();
+
+        Credentials creds = Credentials.create(toWallet.getEncryptedPrivateKey());
+
+        OCCoin coin = OCCoin.load(
+                CONTRACT,
+                web3j,
+                creds,
+                new DefaultGasProvider()
+        );
+
+        return coin.mine().send();
+    }
+
+
 
     private static Issuancereq.@NonNull Item getItem() {
         Issuancereq.Item item1 = new Issuancereq.Item();

@@ -1,11 +1,13 @@
 package com.example.cryptoloyalty.controllers;
 
+import com.example.cryptoloyalty.dto.MineRequest;
 import com.example.cryptoloyalty.dto.TransferRequest;
 import com.example.cryptoloyalty.services.CreateWalletService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.bind.annotation.*;
+import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 import java.util.Map;
 
@@ -48,5 +50,20 @@ public class WalletController {
         );
 
         return Map.of("txHash", txHash);
+    }
+
+    @PostMapping("/mine")
+    public Map<String, String> mine(
+            @RequestBody MineRequest req
+    ) throws Exception {
+
+        TransactionReceipt receipt = walletService.mine(
+                req.toAddress()
+        );
+        return Map.of(
+                "txHash", receipt.getTransactionHash(),
+                "status", String.valueOf(receipt.isStatusOK())
+        );
+
     }
 }
