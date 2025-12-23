@@ -1,10 +1,10 @@
 package com.example.cryptoloyalty.dto;
 
-import java.math.BigInteger;
+import java.math.BigDecimal;
 
 public record TransferRequest(
         String fromUserId,
         String toAddress,
-        BigInteger amountWei,
-        String transferType
-) {}
+        String transferType,
+        BigDecimal amountWei
+){}

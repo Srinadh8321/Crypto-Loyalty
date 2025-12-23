@@ -16,6 +16,7 @@ import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
@@ -23,6 +24,7 @@ import java.security.NoSuchProviderException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -67,37 +69,44 @@ public class CreateWalletService {
     public String transfer(
             String fromUserId,
             String toAddress,
-            BigInteger amountWei,
-            String transferType) throws Exception {
+            BigDecimal amountTokens,
+            String transferType
+            ) throws Exception {
+
+        BigInteger wei = amountTokens
+                .multiply(BigDecimal.TEN.pow(18))
+                .toBigIntegerExact();
 
         WalletEntity wallet =
                 repo.findByUserId(fromUserId).orElseThrow();
+        logger.info("toAddress==>"+toAddress);
+        WalletEntity toWallet =
+                repo.findByWalletAddress(toAddress.toLowerCase()).orElseThrow();
+
 
         String privateKey = wallet.getEncryptedPrivateKey();
-        TransactionReceipt receipt;
+        TransactionReceipt receipt = null;
         if(transferType.equals(Constants.ISSUANCE)){
             //issuance as 10% of receipt amount
-            BigInteger coinsToBeSend= (amountWei.multiply(BigInteger.TEN)).divide(BigInteger.valueOf(100));
+            BigInteger coinsToBeSend= (wei.multiply(BigInteger.TEN)).divide(BigInteger.valueOf(100));
             receipt =
                     erc20.transfer(privateKey, toAddress, coinsToBeSend);
-            boolean issuanceDone= updateIssuanceInOC(wallet.getMembershipNumber(),amountWei.doubleValue());
+            boolean issuanceDone= updateIssuanceInOC(toWallet.getMembershipNumber(),amountTokens.doubleValue());
             if(issuanceDone){
                 logger.info("Issuance completed successfully !");
             }
         }
-        else {
+        else if(transferType.equals(Constants.REDEMPTION)){
             //redemption
-            receipt = erc20.transfer(privateKey, toAddress, amountWei);
-            boolean redemtionDone=updateRedemptionInOC(wallet.getMembershipNumber(), amountWei.multiply(BigInteger.TEN).doubleValue());
+            receipt = erc20.transfer(privateKey, toAddress, wei);
+            boolean redemtionDone=updateRedemptionInOC(wallet.getMembershipNumber(), wei.multiply(BigInteger.TEN).doubleValue());
         }
 
         return receipt.getTransactionHash();
     }
-
     private boolean updateRedemptionInOC(String membershipNumber,Double amountToBeRedeemed) {
         return  true;
     }
-
     public String getPrivateKeyHex() throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException {
 //        if(Constants.priavteKey==null) {
             ECKeyPair masterKey = Keys.createEcKeyPair();
@@ -122,8 +131,10 @@ public class CreateWalletService {
 
         // Membership
         Issuancereq.Membership membership = new Issuancereq.Membership();
+        logger.info("membership ==> "+ membership);
+        logger.info("membership ==> "+ membershipNum);
         membership.setCardNumber("");
-        membership.setPhoneNumber("917386435482");
+        membership.setPhoneNumber(membershipNum);
 
         // Amount
         Issuancereq.Amount amount = new Issuancereq.Amount();
