@@ -5,5 +5,6 @@ import java.math.BigInteger;
 public record TransferRequest(
         String fromUserId,
         String toAddress,
-        BigInteger amountWei
+        BigInteger amountWei,
+        String transferType
 ) {}

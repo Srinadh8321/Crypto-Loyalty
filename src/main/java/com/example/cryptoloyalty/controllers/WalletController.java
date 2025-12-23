@@ -43,7 +43,8 @@ public class WalletController {
         String txHash = walletService.transfer(
                 req.fromUserId(),
                 req.toAddress(),
-                req.amountWei()
+                req.amountWei(),
+                req.transferType()
         );
 
         return Map.of("txHash", txHash);

@@ -24,4 +24,6 @@ public class WalletEntity {
     private String status;
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+    @Column(name = "membership_number")
+    private String membershipNumber;
 }
