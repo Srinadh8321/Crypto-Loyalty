@@ -68,8 +68,7 @@ public class CreateWalletService {
         WalletEntity wallet =
                 repo.findByUserId(fromUserId).orElseThrow();
 
-        String privateKey =
-                crypto.decrypt(wallet.getEncryptedPrivateKey());
+        String privateKey = wallet.getEncryptedPrivateKey();
 
         TransactionReceipt receipt =
                 erc20.transfer(privateKey, toAddress, amountWei);
@@ -78,13 +77,13 @@ public class CreateWalletService {
     }
     
     public String getPrivateKeyHex() throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException {
-        if(Constants.priavteKey==null) {
+//        if(Constants.priavteKey==null) {
             ECKeyPair masterKey = Keys.createEcKeyPair();
             String masterPrivateKeyHex = masterKey.getPrivateKey().toString(16);
             System.out.println(masterPrivateKeyHex);
             Constants.priavteKey =masterPrivateKeyHex;
             logger.info("private Key: {}",masterPrivateKeyHex);
-        }
+//        }
         return Constants.priavteKey;
     }
 }
