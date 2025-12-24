@@ -22,7 +22,6 @@ jobs:
           else
             CHANGED="Initial commit - all files"
           fi
-          
           echo "CHANGED_FILES=$CHANGED" >> $GITHUB_ENV
 
       - name: Get commit details
@@ -33,7 +32,6 @@ jobs:
           BRANCH=${GITHUB_REF##*/}
           COMMIT_MSG=$(git log -1 --pretty=format:'%s')
           TIME=$(date +"%Y-%m-%d %H:%M:%S")
-
           echo "AUTHOR=$AUTHOR" >> $GITHUB_ENV
           echo "EMAIL=$EMAIL" >> $GITHUB_ENV
           echo "REPO=$REPO" >> $GITHUB_ENV
@@ -44,11 +42,9 @@ jobs:
       - name: Send Google Chat Notification
         run: |
           WEBHOOK_URL="https://chat.googleapis.com/v1/spaces/AAQAlYSxQ48/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=COURGwB1cADoPIs8ntkUCO7-laFiICdTClvDxf1gdlw"
-
           FILE_LIST=$(echo "$CHANGED_FILES" | sed 's/^/- /')
 
-          # Build JSON payload
-          JSON_PAYLOAD=$(cat <<EOF
+          JSON_PAYLOAD=$(cat <<'EOF'
 {
 "cards": [
   {
@@ -62,7 +58,7 @@ jobs:
         "widgets": [
           {
             "textParagraph": {
-              "text": "$(echo "$FILE_LIST" | sed ':a;N;\$!ba;s/\n/<br>/g')"
+              "text": "'"$(echo "$FILE_LIST" | sed ':a;N;$!ba;s/\n/<br>/g')"'"
             }
           }
         ]
@@ -91,9 +87,8 @@ jobs:
 ]
 }
 EOF
-          )
+)
 
-          # Send to Google Chat
           curl -X POST -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD" \
             "$WEBHOOK_URL"
