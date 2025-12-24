@@ -19,9 +19,9 @@ jobs:
         run: |
           # Get changed files
           if git rev-parse HEAD~1 >/dev/null 2>&1; then
-            FILES=$(git diff --name-only HEAD~1 HEAD | sed 's/^/- /' | head -20 | tr '\n' ' ')
+            FILES=$(git diff --name-only HEAD~1 HEAD | sed 's/^/📄 /' | head -20 | tr '\n' ' ')
           else
-            FILES="Initial commit"
+            FILES="🎉 Initial commit"
           fi
           
           # Get commit details
@@ -38,16 +38,18 @@ jobs:
           AUTHOR=$(echo "$AUTHOR" | sed 's/"/\\"/g')
           MSG=$(echo "$MSG" | sed 's/"/\\"/g')
           
-          # Create JSON payload
+          # Create JSON payload with enhanced emojis
           JSON='{
             "cards": [{
               "header": {
-                "title": "🚀 Docker Branch Push",
-                "subtitle": "Optculture Automation"
+                "title": "🐳 Docker Branch Deployment Alert",
+                "subtitle": "⚡ Optculture Automation System",
+                "imageUrl": "https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png",
+                "imageStyle": "IMAGE"
               },
               "sections": [
                 {
-                  "header": "📦 Files Changed",
+                  "header": "📂 Modified Files",
                   "widgets": [{
                     "textParagraph": {
                       "text": "'"$FILES"'"
@@ -55,17 +57,41 @@ jobs:
                   }]
                 },
                 {
-                  "header": "📝 Commit Details",
+                  "header": "💻 Commit Information",
                   "widgets": [{
                     "textParagraph": {
-                      "text": "<b>Repository:</b> '"$REPO"'<br><b>Branch:</b> '"$BRANCH"'<br><b>Commit:</b> '"$SHA"'<br><b>Author:</b> '"$AUTHOR"' ('"$EMAIL"')<br><b>Message:</b> '"$MSG"'<br><b>Time:</b> '"$TIME"'"
+                      "text": "🏢 <b>Repository:</b> '"$REPO"'<br>🌿 <b>Branch:</b> <font color=\"#1a73e8\">'"$BRANCH"'</font><br>🔖 <b>Commit:</b> <font color=\"#e37400\">'"$SHA"'</font><br>👤 <b>Author:</b> '"$AUTHOR"'<br>📧 <b>Email:</b> <font color=\"#34a853\">'"$EMAIL"'</font><br>💬 <b>Message:</b> <i>'"$MSG"'</i><br>⏰ <b>Time:</b> '"$TIME"'"
                     }
                   }]
                 },
                 {
                   "widgets": [{
+                    "buttons": [{
+                      "textButton": {
+                        "text": "🔗 View Commit",
+                        "onClick": {
+                          "openLink": {
+                            "url": "https://github.com/'"$REPO"'/commit/'"$GITHUB_SHA"'"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "textButton": {
+                        "text": "📊 View Repository",
+                        "onClick": {
+                          "openLink": {
+                            "url": "https://github.com/'"$REPO"'"
+                          }
+                        }
+                      }
+                    }]
+                  }]
+                },
+                {
+                  "widgets": [{
                     "textParagraph": {
-                      "text": "<i>Regards,<br>Optculture Automation</i>"
+                      "text": "<br><i>✨ Automated by Optculture CI/CD Pipeline</i>"
                     }
                   }]
                 }
@@ -79,4 +105,4 @@ jobs:
             -d "$JSON" \
             "https://chat.googleapis.com/v1/spaces/AAQAlYSxQ48/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=COURGwB1cADoPIs8ntkUCO7-laFiICdTClvDxf1gdlw"
           
-          echo "✅ Notification sent!"
+          echo "✅ Notification sent successfully! 🎉"
