@@ -1,0 +1,97 @@
+name: Notify Google Chat on Push
+
+on:
+  push:
+    branches:
+      - docker
+
+jobs:
+  notify-google-chat:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Get commit info
+      id: commit_info
+      run: |
+        AUTHOR=$(git log -1 --pretty=format:'%an')
+        EMAIL=$(git log -1 --pretty=format:'%ae')
+        REPO=${GITHUB_REPOSITORY}
+        BRANCH=${GITHUB_REF##*/}
+        COMMIT_MSG=$(git log -1 --pretty=format:'%s')
+        TIME=$(date +"%Y-%m-%d %H:%M:%S")
+        FILES=$(git diff-tree --no-commit-id --name-only -r HEAD | jq -R -s -c 'split("\n")[:-1]')
+        
+        echo "AUTHOR=$AUTHOR" >> $GITHUB_ENV
+        echo "EMAIL=$EMAIL" >> $GITHUB_ENV
+        echo "REPO=$REPO" >> $GITHUB_ENV
+        echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+        echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_ENV
+        echo "TIME=$TIME" >> $GITHUB_ENV
+        echo "FILES=$FILES" >> $GITHUB_ENV
+
+    - name: Send message to Google Chat
+      uses: wei/curl@master
+      with:
+        args: -X POST \
+          -H "Content-Type: application/json" \
+          -d '{
+                "cards": [
+                  {
+                    "header": {
+                      "title": "🚀 Docker Branch Push Notification",
+                      "subtitle": "Optculture Automation"
+                    },
+                    "sections": [
+                      {
+                        "widgets": [
+                          {
+                            "keyValue": {
+                              "topLabel": "Repository",
+                              "content": "${{ env.REPO }}"
+                            }
+                          },
+                          {
+                            "keyValue": {
+                              "topLabel": "Branch",
+                              "content": "${{ env.BRANCH }}"
+                            }
+                          },
+                          {
+                            "keyValue": {
+                              "topLabel": "Author",
+                              "content": "${{ env.AUTHOR }} (<${{ env.EMAIL }}>)"
+                            }
+                          },
+                          {
+                            "keyValue": {
+                              "topLabel": "Commit Message",
+                              "content": "${{ env.COMMIT_MSG }}"
+                            }
+                          },
+                          {
+                            "keyValue": {
+                              "topLabel": "Modified Files",
+                              "content": "${{ env.FILES }}"
+                            }
+                          },
+                          {
+                            "keyValue": {
+                              "topLabel": "Time",
+                              "content": "${{ env.TIME }}"
+                            }
+                          },
+                          {
+                            "textParagraph": {
+                              "text": "Regards,\nOptculture Automation"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }' \
+          "https://chat.googleapis.com/v1/spaces/AAQAlYSxQ48/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=COURGwB1cADoPIs8ntkUCO7-laFiICdTClvDxf1gdlw"
