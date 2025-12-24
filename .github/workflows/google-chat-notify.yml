@@ -32,6 +32,7 @@ jobs:
           BRANCH=${GITHUB_REF##*/}
           COMMIT_MSG=$(git log -1 --pretty=format:'%s')
           TIME=$(date +"%Y-%m-%d %H:%M:%S")
+
           echo "AUTHOR=$AUTHOR" >> $GITHUB_ENV
           echo "EMAIL=$EMAIL" >> $GITHUB_ENV
           echo "REPO=$REPO" >> $GITHUB_ENV
@@ -44,51 +45,53 @@ jobs:
           WEBHOOK_URL="https://chat.googleapis.com/v1/spaces/AAQAlYSxQ48/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=COURGwB1cADoPIs8ntkUCO7-laFiICdTClvDxf1gdlw"
           FILE_LIST=$(echo "$CHANGED_FILES" | sed 's/^/- /')
 
-          JSON_PAYLOAD=$(cat <<'EOF'
+          # Build JSON payload
+          JSON_PAYLOAD=$(cat <<EOF
 {
-"cards": [
-  {
-    "header": {
-      "title": "🚀 Docker Branch Push Notification",
-      "subtitle": "Optculture Automation"
-    },
-    "sections": [
-      {
-        "header": "📦 Files Changed",
-        "widgets": [
-          {
-            "textParagraph": {
-              "text": "'"$(echo "$FILE_LIST" | sed ':a;N;$!ba;s/\n/<br>/g')"'"
-            }
-          }
-        ]
+  "cards": [
+    {
+      "header": {
+        "title": "🚀 Docker Branch Push Notification",
+        "subtitle": "Optculture Automation"
       },
-      {
-        "header": "📝 Commit Details",
-        "widgets": [
-          {
-            "textParagraph": {
-              "text": "<b>Repository:</b> $REPO<br><b>Branch:</b> $BRANCH<br><b>Author:</b> $AUTHOR (<$EMAIL>)<br><b>Message:</b> $COMMIT_MSG<br><b>Time:</b> $TIME"
+      "sections": [
+        {
+          "header": "📦 Files Changed",
+          "widgets": [
+            {
+              "textParagraph": {
+                "text": "$(echo "$FILE_LIST" | sed ':a;N;$!ba;s/\n/<br>/g')"
+              }
             }
-          }
-        ]
-      },
-      {
-        "widgets": [
-          {
-            "textParagraph": {
-              "text": "<i>Regards,<br>Optculture Automation</i>"
+          ]
+        },
+        {
+          "header": "📝 Commit Details",
+          "widgets": [
+            {
+              "textParagraph": {
+                "text": "<b>Repository:</b> $REPO<br><b>Branch:</b> $BRANCH<br><b>Author:</b> $AUTHOR (<$EMAIL>)<br><b>Message:</b> $COMMIT_MSG<br><b>Time:</b> $TIME"
+              }
             }
-          }
-        ]
-      }
-    ]
-  }
-]
+          ]
+        },
+        {
+          "widgets": [
+            {
+              "textParagraph": {
+                "text": "<i>Regards,<br>Optculture Automation</i>"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }
 EOF
 )
 
+          # Send to Google Chat
           curl -X POST -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD" \
             "$WEBHOOK_URL"
