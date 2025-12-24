@@ -30,12 +30,18 @@
 		<java.version>17</java.version>
 	</properties>
 	<repositories>
-		<repository>
-			<id>consensys-maven</id>
-			<name>Consensys Maven Repo</name>
-			<url>https://maven.pkg.github.com/ConsenSys</url>
-		</repository>
-	</repositories>
+    <repository>
+        <id>consensys-maven</id>
+        <name>ConsenSys GitHub Packages</name>
+        <url>https://maven.pkg.github.com/ConsenSys/teku</url>
+        <releases>
+            <enabled>true</enabled>
+        </releases>
+        <snapshots>
+            <enabled>false</enabled>
+        </snapshots>
+    </repository>
+</repositories>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
