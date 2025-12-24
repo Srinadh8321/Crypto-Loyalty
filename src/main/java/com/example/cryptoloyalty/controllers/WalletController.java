@@ -1,9 +1,12 @@
 package com.example.cryptoloyalty.controllers;
 
 import com.example.cryptoloyalty.dto.MineRequest;
+import com.example.cryptoloyalty.dto.QrGenRequest;
 import com.example.cryptoloyalty.dto.TransferRequest;
 import com.example.cryptoloyalty.services.CreateWalletService;
+import com.example.cryptoloyalty.services.QrGeneratorService;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.bind.annotation.*;
@@ -65,5 +68,14 @@ public class WalletController {
                 "status", String.valueOf(receipt.isStatusOK())
         );
 
+    }
+
+    @GetMapping(value = "/wallet/qr", produces = MediaType.IMAGE_PNG_VALUE)
+    public byte[] generateWalletQr(@RequestParam String toAddress) throws Exception {
+
+        // MetaMask-compatible QR payload
+        String qrText = "ethereum:" + toAddress + "@11155111";
+
+        return QrGeneratorService.generate(qrText);
     }
 }

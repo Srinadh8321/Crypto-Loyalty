@@ -50,6 +50,7 @@ public class CreateWalletService {
 
 
 
+
     public CreateWalletService(
             WalletRepository repo,
             KeyEncryptionService crypto,
@@ -290,4 +291,5 @@ public class CreateWalletService {
         item1.setItemNote("");
         return item1;
     }
+
 }
