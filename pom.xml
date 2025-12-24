@@ -61,6 +61,21 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Gson (used in CreateWalletService.java) -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+         <artifactId>gson</artifactId>
+         <version>2.11.0</version>
+         </dependency>
+
+        <!-- NonNull annotation (used in CreateWalletService.java) -->
+        <dependency>
+        <groupId>org.jspecify</groupId>
+        <artifactId>jspecify</artifactId>
+        <version>1.0.0</version>
+        </dependency>
+             
+
 
     </dependencies>
 
