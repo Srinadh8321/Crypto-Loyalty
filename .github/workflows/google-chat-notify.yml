@@ -1,42 +1,53 @@
-name: Notify Google Chat on Push
+name: Notify Google Chat on Docker Branch Push
 
 on:
   push:
-    branches:
-      - docker
+    branches: [ "docker" ]
 
 jobs:
-  notify-google-chat:
+  notify:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout Code (Full History)
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0   # Important to get full history for changed files
 
-    - name: Get commit info
-      id: commit_info
-      run: |
-        AUTHOR=$(git log -1 --pretty=format:'%an')
-        EMAIL=$(git log -1 --pretty=format:'%ae')
-        REPO=${GITHUB_REPOSITORY}
-        BRANCH=${GITHUB_REF##*/}
-        COMMIT_MSG=$(git log -1 --pretty=format:'%s')
-        TIME=$(date +"%Y-%m-%d %H:%M:%S")
-        FILES=$(git diff-tree --no-commit-id --name-only -r HEAD | jq -R -s -c 'split("\n")[:-1]')
-        
-        echo "AUTHOR=$AUTHOR" >> $GITHUB_ENV
-        echo "EMAIL=$EMAIL" >> $GITHUB_ENV
-        echo "REPO=$REPO" >> $GITHUB_ENV
-        echo "BRANCH=$BRANCH" >> $GITHUB_ENV
-        echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_ENV
-        echo "TIME=$TIME" >> $GITHUB_ENV
-        echo "FILES=$FILES" >> $GITHUB_ENV
+      - name: Get list of changed files safely
+        id: changes
+        run: |
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
+            CHANGED=$(git diff --name-only HEAD~1 HEAD)
+          else
+            CHANGED="Initial commit - all files"
+          fi
+          
+          echo "CHANGED_FILES=$CHANGED" >> $GITHUB_ENV
 
-    - name: Send message to Google Chat
-      run: |
-        curl -X POST \
-          -H "Content-Type: application/json" \
-          -d @- "https://chat.googleapis.com/v1/spaces/AAQAlYSxQ48/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=COURGwB1cADoPIs8ntkUCO7-laFiICdTClvDxf1gdlw" <<EOF
+      - name: Get commit details
+        run: |
+          AUTHOR=$(git log -1 --pretty=format:'%an')
+          EMAIL=$(git log -1 --pretty=format:'%ae')
+          REPO=${GITHUB_REPOSITORY}
+          BRANCH=${GITHUB_REF##*/}
+          COMMIT_MSG=$(git log -1 --pretty=format:'%s')
+          TIME=$(date +"%Y-%m-%d %H:%M:%S")
+
+          echo "AUTHOR=$AUTHOR" >> $GITHUB_ENV
+          echo "EMAIL=$EMAIL" >> $GITHUB_ENV
+          echo "REPO=$REPO" >> $GITHUB_ENV
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+          echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_ENV
+          echo "TIME=$TIME" >> $GITHUB_ENV
+
+      - name: Send Google Chat Notification
+        run: |
+          WEBHOOK_URL="https://chat.googleapis.com/v1/spaces/AAQAlYSxQ48/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=COURGwB1cADoPIs8ntkUCO7-laFiICdTClvDxf1gdlw"
+
+          FILE_LIST=$(echo "${{ env.CHANGED_FILES }}" | sed 's/^/- /')
+
+          JSON_PAYLOAD=$(cat <<EOF
 {
   "cards": [
     {
@@ -46,46 +57,30 @@ jobs:
       },
       "sections": [
         {
+          "header": "📦 Files Changed",
           "widgets": [
             {
-              "keyValue": {
-                "topLabel": "Repository",
-                "content": "${{ env.REPO }}"
+              "textParagraph": {
+                "text": "$(echo "$FILE_LIST" | sed ':a;N;$!ba;s/\n/<br>/g')"
               }
-            },
-            {
-              "keyValue": {
-                "topLabel": "Branch",
-                "content": "${{ env.BRANCH }}"
-              }
-            },
-            {
-              "keyValue": {
-                "topLabel": "Author",
-                "content": "${{ env.AUTHOR }} (<${{ env.EMAIL }}>)"
-              }
-            },
-            {
-              "keyValue": {
-                "topLabel": "Commit Message",
-                "content": "${{ env.COMMIT_MSG }}"
-              }
-            },
-            {
-              "keyValue": {
-                "topLabel": "Modified Files",
-                "content": "${{ env.FILES }}"
-              }
-            },
-            {
-              "keyValue": {
-                "topLabel": "Time",
-                "content": "${{ env.TIME }}"
-              }
-            },
+            }
+          ]
+        },
+        {
+          "header": "📝 Commit Details",
+          "widgets": [
             {
               "textParagraph": {
-                "text": "Regards,\nOptculture Automation"
+                "text": "<b>Repository:</b> ${{ env.REPO }}<br><b>Branch:</b> ${{ env.BRANCH }}<br><b>Author:</b> ${{ env.AUTHOR }} (<${{ env.EMAIL }}>)<br><b>Message:</b> ${{ env.COMMIT_MSG }}<br><b>Time:</b> ${{ env.TIME }}"
+              }
+            }
+          ]
+        },
+        {
+          "widgets": [
+            {
+              "textParagraph": {
+                "text": "<i>Regards,<br>Optculture Automation</i>"
               }
             }
           ]
@@ -95,3 +90,11 @@ jobs:
   ]
 }
 EOF
+          )
+
+          curl -X POST -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD" \
+            "$WEBHOOK_URL"
+
+      - name: Notification Sent
+        run: echo "Google Chat notification sent successfully!"
