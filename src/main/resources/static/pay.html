@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Pay with OCCOIN</title>
+</head>
+<body>
+
+<button id="payBtn">Pay</button>
+
+<script type="module">
+  import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.12.1/+esm";
+
+  document.getElementById("payBtn").onclick = async () => {
+    try {
+      if (!window.ethereum) {
+        alert("MetaMask not found");
+        return;
+      }
+
+      // 1. Read paymentId
+      const params = new URLSearchParams(window.location.search);
+      const paymentId = params.get("paymentId");
+
+      // 2. Fetch payment intent
+      const payment = await fetch(`/payments/${paymentId}`).then(r => r.json());
+
+      // 3. Connect MetaMask
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+
+      // 4. ERC20 contract
+      const token = new ethers.Contract(
+              "0x6f6212601cce704a81b201d9fe0e6cbec1a3c194", // OCCOIN
+              ["function transfer(address to, uint256 amount) returns (bool)"],
+              signer
+      );
+
+      // 5. Send TOKEN (not ETH)
+      const tx = await token.transfer(
+              payment.toAddress,
+              ethers.parseUnits(payment.amount, 18)
+      );
+
+      await tx.wait();
+      alert("Payment successful");
+
+    } catch (e) {
+      console.error(e);
+      alert("Payment failed: " + e.message);
+    }
+  };
+</script>
+
+</body>
+</html>
