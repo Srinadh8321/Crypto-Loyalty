@@ -92,4 +92,5 @@ public class WalletEntity {
     private LocalDateTime createdAt;
     @Column(name = "membership_number")
     private String membershipNumber;
+    private double balance;
 }

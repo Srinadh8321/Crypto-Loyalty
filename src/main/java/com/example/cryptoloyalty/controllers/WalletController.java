@@ -78,4 +78,8 @@ public class WalletController {
 
         return QrGeneratorService.generate(qrText);
     }
+    @GetMapping("/enquiry")
+    public ResponseEntity walletEnquiry(@RequestParam String userId){
+        return walletService.enquiryByuserId(userId);
+    }
 }

@@ -23,7 +23,7 @@ public class Issuancereq {
             private String storeNumber;
             private String docSID;
             private String receiptNumber;
-
+            private String sourceType;
         }
         @Data
         public static class Membership {

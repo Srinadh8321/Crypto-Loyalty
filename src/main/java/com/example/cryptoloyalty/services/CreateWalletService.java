@@ -27,10 +27,7 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class CreateWalletService {
@@ -73,6 +70,7 @@ public class CreateWalletService {
         wallet.setStatus("Active");
         wallet.setEncryptedPrivateKey(getPrivateKeyHex());
         wallet.setCreatedAt(LocalDateTime.now());
+        wallet.setBalance(0);
         wallet=repo.save(wallet);
         Map<String, String> response= new HashMap<>();
         response.put("userId",userId);
@@ -108,20 +106,120 @@ public class CreateWalletService {
             receipt =
                     erc20.transfer(privateKey, toAddress, coinsToBeSend);
             boolean issuanceDone= updateIssuanceInOC(toWallet.getMembershipNumber(),amountTokens.doubleValue());
+            wallet.setBalance(wallet.getBalance()-amountTokens.doubleValue()/10);
+            Optional<WalletEntity> walltCust= repo.findByWalletAddress(toAddress);
+            if(walltCust.isPresent()){
+                walltCust.get().setBalance(wallet.getBalance()+amountTokens.doubleValue()/10);
+            }
+            repo.saveAll(Arrays.asList(wallet,walltCust.get()));
             if(issuanceDone){
                 logger.info("Issuance completed successfully !");
             }
         }
+
+
         else if(transferType.equals(Constants.REDEMPTION)){
-            //redemption
-            receipt = erc20.transfer(privateKey, toAddress, wei);
-            boolean redemtionDone=updateRedemptionInOC(wallet.getMembershipNumber(), wei.multiply(BigInteger.TEN).doubleValue());
+            //issuance as 10% of receipt amount
+            BigInteger coinsToBeSend= (wei.multiply(BigInteger.TEN)).divide(BigInteger.valueOf(100));
+            receipt =
+                    erc20.transfer(privateKey, toAddress, coinsToBeSend);
+            boolean redemptiondone= updateRedemptionInOC(toWallet.getMembershipNumber(),amountTokens.doubleValue());
+            wallet.setBalance(wallet.getBalance()-amountTokens.doubleValue()/10);
+            Optional<WalletEntity> walltCust= repo.findByWalletAddress(toAddress);
+            if(walltCust.isPresent()){
+                walltCust.get().setBalance(wallet.getBalance()+amountTokens.doubleValue()/10);
+            }
+            repo.saveAll(Arrays.asList(wallet,walltCust.get()));
+            if(redemptiondone){
+                logger.info("Issuance completed successfully !");
+            }
         }
 
         return receipt.getTransactionHash();
     }
     private boolean updateRedemptionInOC(String membershipNumber,Double amountToBeRedeemed) {
-        return  true;
+        Issuancereq request= new Issuancereq();
+        Issuancereq.Header header = new Issuancereq.Header();
+        header.setRequestId("_DR"+System.nanoTime());
+        header.setRequestDate("2025-12-24 11:12:59");
+        header.setSubsidiaryNumber("14");
+        header.setStoreNumber("14");
+        header.setDocSID("RE_"+System.nanoTime());
+        header.setReceiptNumber(""+System.nanoTime());
+        header.setSourceType("");
+
+        // Membership
+        Issuancereq.Membership membership = new Issuancereq.Membership();
+        membership.setCardNumber("");
+
+        // Amount
+        Issuancereq.Amount amount = new Issuancereq.Amount();
+        amount.setType("Purchase");
+        amount.setEnteredValue(amountToBeRedeemed+"");
+        amount.setValueCode("OC Coin");
+
+        // Discounts
+        Issuancereq.Discounts.Promotion promotion = new Issuancereq.Discounts.Promotion();
+        promotion.setName("");
+
+        Issuancereq.Discounts discounts = new Issuancereq.Discounts();
+        discounts.setAppliedPromotion("NA");
+        discounts.setPromotions(List.of(promotion));
+
+        // Customer
+        Issuancereq.Customer customer = new Issuancereq.Customer();
+        customer.setCustomerId("");
+        customer.setPhone(membershipNumber);
+        customer.setEmailAddress("amarnath@optculture.com");
+
+        // User
+        Issuancereq.User user = new Issuancereq.User();
+        user.setUserName("Ginesys");
+        user.setOrganizationId("Ginesys");
+        user.setToken("QA7R7AG5BA266W51");
+
+        // Assemble
+        request.setHeader(header);
+        request.setMembership(membership);
+        request.setAmount(amount);
+        request.setDiscounts(discounts);
+        request.setCustomer(customer);
+        request.setUser(user);
+        Gson gson = new Gson();
+        //Convert Object to JSON string
+        String requestJson = gson.toJson(request);
+        logger.info("RequestJson::::"+requestJson);
+        // Set up headers
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON); // Set content type to JSON
+
+        // Create the HTTP entity with the request body and headers
+        HttpEntity<Issuancereq> entity = new HttpEntity<>(request, headers);
+
+        // Initialize RestTemplate
+        RestTemplate restTemplate = new RestTemplate();
+
+        // Define the API URL
+        String apiUrl =  "https://qcapp.optculture.com/subscriber/OCLoyaltyRedemption.mqrm";
+
+        // Send the POST request
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    apiUrl,
+                    entity,
+                    String.class
+            );
+            // Handle the response
+            if (response.getStatusCode() == HttpStatus.OK) {
+                logger.info("Response: " + response.getBody());
+                if (response.getBody().contains("status\":{\"errorCode\":\"0\"")) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            logger.info("Exception while issuance ",e);
+        }
+        return false;
     }
     public String getPrivateKeyHex() throws InvalidAlgorithmParameterException, NoSuchAlgorithmException, NoSuchProviderException {
 //        if(Constants.priavteKey==null) {
@@ -292,4 +390,17 @@ public class CreateWalletService {
         return item1;
     }
 
+    public ResponseEntity enquiryByuserId(String userId) {
+        if(userId!=null){
+            Optional<WalletEntity> wallet= repo.findByUserId(userId);
+            if(wallet.isPresent()){
+                Map<String,String> map= new HashMap<>();
+                map.put("userId",userId);
+                map.put("walletAddress",wallet.get().getWalletAddress());
+                map.put("occoins",String.valueOf(wallet.get().getBalance()));
+                return new ResponseEntity<>(map,HttpStatus.OK);
+            }
+        }
+        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+    }
 }
