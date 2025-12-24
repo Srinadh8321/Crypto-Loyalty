@@ -2,7 +2,8 @@ name: Notify Google Chat on Docker Branch Push
 
 on:
   push:
-    branches: [ "docker" ]
+    branches:
+      - docker
 
 jobs:
   notify:
@@ -14,83 +15,68 @@ jobs:
         with:
           fetch-depth: 2
       
-      - name: Get commit and file details
-        id: details
+      - name: Send Google Chat Notification
         run: |
           # Get changed files
           if git rev-parse HEAD~1 >/dev/null 2>&1; then
-            FILES=$(git diff --name-only HEAD~1 HEAD | sed 's/^/- /' | paste -sd '|' -)
+            FILES=$(git diff --name-only HEAD~1 HEAD | sed 's/^/- /' | head -20 | tr '\n' ' ')
           else
-            FILES="- Initial commit"
+            FILES="Initial commit"
           fi
           
-          # Get commit info
+          # Get commit details
           AUTHOR=$(git log -1 --pretty=format:'%an')
           EMAIL=$(git log -1 --pretty=format:'%ae')
-          MESSAGE=$(git log -1 --pretty=format:'%s')
+          MSG=$(git log -1 --pretty=format:'%s')
           SHA=${GITHUB_SHA:0:7}
-          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          REPO=$GITHUB_REPOSITORY
+          BRANCH=${GITHUB_REF#refs/heads/}
           
-          # Output to GitHub environment with multiline support
-          {
-            echo "FILES<<EOF"
-            echo "$FILES"
-            echo "EOF"
-            echo "AUTHOR=$AUTHOR"
-            echo "EMAIL=$EMAIL"
-            echo "MESSAGE=$MESSAGE"
-            echo "SHA=$SHA"
-            echo "TIMESTAMP=$TIMESTAMP"
-            echo "REPO=$GITHUB_REPOSITORY"
-            echo "BRANCH=${GITHUB_REF#refs/heads/}"
-          } >> $GITHUB_ENV
-      
-      - name: Send to Google Chat
-        env:
-          WEBHOOK_URL: ${{ secrets.GOOGLE_CHAT_WEBHOOK }}
-        run: |
-          # Convert files list
-          FILES_HTML=$(echo "$FILES" | tr '|' '\n' | sed 's/$/\\n/' | tr -d '\n')
+          # Escape double quotes in variables
+          FILES=$(echo "$FILES" | sed 's/"/\\"/g')
+          AUTHOR=$(echo "$AUTHOR" | sed 's/"/\\"/g')
+          MSG=$(echo "$MSG" | sed 's/"/\\"/g')
           
-          # Escape special characters for JSON
-          MESSAGE_ESC=$(echo "$MESSAGE" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
-          AUTHOR_ESC=$(echo "$AUTHOR" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
-          
-          # Build and send JSON
-          curl -X POST "$WEBHOOK_URL" \
-            -H 'Content-Type: application/json' \
-            -d '{
-              "cards": [{
-                "header": {
-                  "title": "🚀 Docker Branch Push",
-                  "subtitle": "Optculture Automation"
+          # Create JSON payload
+          JSON='{
+            "cards": [{
+              "header": {
+                "title": "🚀 Docker Branch Push",
+                "subtitle": "Optculture Automation"
+              },
+              "sections": [
+                {
+                  "header": "📦 Files Changed",
+                  "widgets": [{
+                    "textParagraph": {
+                      "text": "'"$FILES"'"
+                    }
+                  }]
                 },
-                "sections": [
-                  {
-                    "header": "📦 Files Changed",
-                    "widgets": [{
-                      "textParagraph": {
-                        "text": "'"$FILES_HTML"'"
-                      }
-                    }]
-                  },
-                  {
-                    "header": "📝 Commit Details",
-                    "widgets": [{
-                      "textParagraph": {
-                        "text": "<b>Repository:</b> '"$REPO"'<br><b>Branch:</b> '"$BRANCH"'<br><b>Commit:</b> '"$SHA"'<br><b>Author:</b> '"$AUTHOR_ESC"' ('"$EMAIL"')<br><b>Message:</b> '"$MESSAGE_ESC"'<br><b>Time:</b> '"$TIMESTAMP"'"
-                      }
-                    }]
-                  },
-                  {
-                    "widgets": [{
-                      "textParagraph": {
-                        "text": "<i>Regards,<br>Optculture Automation</i>"
-                      }
-                    }]
-                  }
-                ]
-              }]
-            }'
+                {
+                  "header": "📝 Commit Details",
+                  "widgets": [{
+                    "textParagraph": {
+                      "text": "<b>Repository:</b> '"$REPO"'<br><b>Branch:</b> '"$BRANCH"'<br><b>Commit:</b> '"$SHA"'<br><b>Author:</b> '"$AUTHOR"' ('"$EMAIL"')<br><b>Message:</b> '"$MSG"'<br><b>Time:</b> '"$TIME"'"
+                    }
+                  }]
+                },
+                {
+                  "widgets": [{
+                    "textParagraph": {
+                      "text": "<i>Regards,<br>Optculture Automation</i>"
+                    }
+                  }]
+                }
+              ]
+            }]
+          }'
           
-          echo "✅ Notification sent successfully"
+          # Send to Google Chat
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d "$JSON" \
+            "https://chat.googleapis.com/v1/spaces/AAQAlYSxQ48/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=COURGwB1cADoPIs8ntkUCO7-laFiICdTClvDxf1gdlw"
+          
+          echo "✅ Notification sent!"
