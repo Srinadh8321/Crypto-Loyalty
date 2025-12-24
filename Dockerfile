@@ -1,5 +1,5 @@
 # ---------- BUILD STAGE ----------
-FROM --platform=linux/arm64 maven:3.9.9-eclipse-temurin-23 AS builder
+FROM maven:3.9.9-eclipse-temurin-23 AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ RUN mvn -B -DskipTests clean package
 
 
 # ---------- RUNTIME STAGE ----------
-FROM --platform=linux/arm64 eclipse-temurin:23-jre
+FROM eclipse-temurin:23-jre
 
 WORKDIR /app
 
