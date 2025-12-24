@@ -33,65 +33,65 @@ jobs:
         echo "FILES=$FILES" >> $GITHUB_ENV
 
     - name: Send message to Google Chat
-      uses: wei/curl@master
-      with:
-        args: -X POST \
+      run: |
+        curl -X POST \
           -H "Content-Type: application/json" \
-          -d '{
-                "cards": [
-                  {
-                    "header": {
-                      "title": "🚀 Docker Branch Push Notification",
-                      "subtitle": "Optculture Automation"
-                    },
-                    "sections": [
-                      {
-                        "widgets": [
-                          {
-                            "keyValue": {
-                              "topLabel": "Repository",
-                              "content": "${{ env.REPO }}"
-                            }
-                          },
-                          {
-                            "keyValue": {
-                              "topLabel": "Branch",
-                              "content": "${{ env.BRANCH }}"
-                            }
-                          },
-                          {
-                            "keyValue": {
-                              "topLabel": "Author",
-                              "content": "${{ env.AUTHOR }} (<${{ env.EMAIL }}>)"
-                            }
-                          },
-                          {
-                            "keyValue": {
-                              "topLabel": "Commit Message",
-                              "content": "${{ env.COMMIT_MSG }}"
-                            }
-                          },
-                          {
-                            "keyValue": {
-                              "topLabel": "Modified Files",
-                              "content": "${{ env.FILES }}"
-                            }
-                          },
-                          {
-                            "keyValue": {
-                              "topLabel": "Time",
-                              "content": "${{ env.TIME }}"
-                            }
-                          },
-                          {
-                            "textParagraph": {
-                              "text": "Regards,\nOptculture Automation"
-                            }
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              }' \
-          "https://chat.googleapis.com/v1/spaces/AAQAlYSxQ48/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=COURGwB1cADoPIs8ntkUCO7-laFiICdTClvDxf1gdlw"
+          -d @- "https://chat.googleapis.com/v1/spaces/AAQAlYSxQ48/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=COURGwB1cADoPIs8ntkUCO7-laFiICdTClvDxf1gdlw" <<EOF
+{
+  "cards": [
+    {
+      "header": {
+        "title": "🚀 Docker Branch Push Notification",
+        "subtitle": "Optculture Automation"
+      },
+      "sections": [
+        {
+          "widgets": [
+            {
+              "keyValue": {
+                "topLabel": "Repository",
+                "content": "${{ env.REPO }}"
+              }
+            },
+            {
+              "keyValue": {
+                "topLabel": "Branch",
+                "content": "${{ env.BRANCH }}"
+              }
+            },
+            {
+              "keyValue": {
+                "topLabel": "Author",
+                "content": "${{ env.AUTHOR }} (<${{ env.EMAIL }}>)"
+              }
+            },
+            {
+              "keyValue": {
+                "topLabel": "Commit Message",
+                "content": "${{ env.COMMIT_MSG }}"
+              }
+            },
+            {
+              "keyValue": {
+                "topLabel": "Modified Files",
+                "content": "${{ env.FILES }}"
+              }
+            },
+            {
+              "keyValue": {
+                "topLabel": "Time",
+                "content": "${{ env.TIME }}"
+              }
+            },
+            {
+              "textParagraph": {
+                "text": "Regards,\nOptculture Automation"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+EOF
