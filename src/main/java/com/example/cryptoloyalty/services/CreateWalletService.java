@@ -80,7 +80,7 @@ public class CreateWalletService {
     }
 
     // TRANSFER TOKENS
-    public String transfer(
+    public Map<String,String> transfer(
             String fromUserId,
             String toAddress,
             BigDecimal amountTokens,
@@ -107,11 +107,8 @@ public class CreateWalletService {
                     erc20.transfer(privateKey, toAddress, coinsToBeSend);
             boolean issuanceDone= updateIssuanceInOC(toWallet.getMembershipNumber(),amountTokens.doubleValue());
             wallet.setBalance(wallet.getBalance()-amountTokens.doubleValue()/10);
-            Optional<WalletEntity> walltCust= repo.findByWalletAddress(toAddress);
-            if(walltCust.isPresent()){
-                walltCust.get().setBalance(wallet.getBalance()+amountTokens.doubleValue()/10);
-            }
-            repo.saveAll(Arrays.asList(wallet,walltCust.get()));
+            toWallet.setBalance(toWallet.getBalance()+amountTokens.doubleValue()/10);
+            repo.saveAll(Arrays.asList(wallet,toWallet));
             if(issuanceDone){
                 logger.info("Issuance completed successfully !");
             }
@@ -125,17 +122,16 @@ public class CreateWalletService {
                     erc20.transfer(privateKey, toAddress, coinsToBeSend);
             boolean redemptiondone= updateRedemptionInOC(toWallet.getMembershipNumber(),amountTokens.doubleValue());
             wallet.setBalance(wallet.getBalance()-amountTokens.doubleValue()/10);
-            Optional<WalletEntity> walltCust= repo.findByWalletAddress(toAddress);
-            if(walltCust.isPresent()){
-                walltCust.get().setBalance(wallet.getBalance()+amountTokens.doubleValue()/10);
-            }
-            repo.saveAll(Arrays.asList(wallet,walltCust.get()));
+            toWallet.setBalance(toWallet.getBalance()+amountTokens.doubleValue()/10);
+            repo.saveAll(Arrays.asList(wallet,toWallet));
             if(redemptiondone){
-                logger.info("Issuance completed successfully !");
+                logger.info("Redemption completed successfully !");
             }
         }
-
-        return receipt.getTransactionHash();
+        Map<String,String> map = new HashMap<>();
+        map.put("hash",receipt.getTransactionHash());
+        map.put("occoins",String.valueOf(toWallet.getBalance()));
+        return map;
     }
     private boolean updateRedemptionInOC(String membershipNumber,Double amountToBeRedeemed) {
         Issuancereq request= new Issuancereq();
@@ -156,7 +152,7 @@ public class CreateWalletService {
         Issuancereq.Amount amount = new Issuancereq.Amount();
         amount.setType("Purchase");
         amount.setEnteredValue(amountToBeRedeemed+"");
-        amount.setValueCode("OC Coin");
+        amount.setValueCode("Points");
 
         // Discounts
         Issuancereq.Discounts.Promotion promotion = new Issuancereq.Discounts.Promotion();

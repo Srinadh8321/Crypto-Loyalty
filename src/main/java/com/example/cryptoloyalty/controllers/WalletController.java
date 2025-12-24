@@ -45,14 +45,13 @@ public class WalletController {
             @RequestBody TransferRequest req
     ) throws Exception {
 
-        String txHash = walletService.transfer(
+        return walletService.transfer(
                 req.fromUserId(),
                 req.toAddress(),
                 req.amountWei(),
                 req.transferType()
         );
 
-        return Map.of("txHash", txHash);
     }
 
     @PostMapping("/mine")
