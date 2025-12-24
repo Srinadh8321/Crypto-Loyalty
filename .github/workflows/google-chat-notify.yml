@@ -7,23 +7,25 @@ on:
 jobs:
   notify:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout Code (Full History)
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
+      
       - name: Get list of changed files safely
         id: changes
         run: |
           if git rev-parse HEAD~1 >/dev/null 2>&1; then
-            CHANGED=$(git diff --name-only HEAD~1 HEAD)
+            CHANGED=$(git diff --name-only HEAD~1 HEAD | sed 's/^/- /' | tr '\n' '|')
           else
-            CHANGED="Initial commit - all files"
+            CHANGED="- Initial commit - all files"
           fi
-          echo "CHANGED_FILES=$CHANGED" >> $GITHUB_ENV
-
+          echo "CHANGED_FILES<<EOF" >> $GITHUB_ENV
+          echo "$CHANGED" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+      
       - name: Get commit details
         run: |
           AUTHOR=$(git log -1 --pretty=format:'%an')
@@ -31,22 +33,29 @@ jobs:
           REPO=${GITHUB_REPOSITORY}
           BRANCH=${GITHUB_REF##*/}
           COMMIT_MSG=$(git log -1 --pretty=format:'%s')
-          TIME=$(date +"%Y-%m-%d %H:%M:%S")
-
+          COMMIT_SHA=${GITHUB_SHA:0:7}
+          TIME=$(date +"%Y-%m-%d %H:%M:%S UTC")
+          
           echo "AUTHOR=$AUTHOR" >> $GITHUB_ENV
           echo "EMAIL=$EMAIL" >> $GITHUB_ENV
           echo "REPO=$REPO" >> $GITHUB_ENV
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
-          echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_ENV
+          echo "COMMIT_SHA=$COMMIT_SHA" >> $GITHUB_ENV
           echo "TIME=$TIME" >> $GITHUB_ENV
-
+          
+          # Escape commit message for JSON
+          COMMIT_MSG_ESCAPED=$(echo "$COMMIT_MSG" | sed 's/"/\\"/g' | sed "s/'/\\'/g")
+          echo "COMMIT_MSG=$COMMIT_MSG_ESCAPED" >> $GITHUB_ENV
+      
       - name: Send Google Chat Notification
         run: |
           WEBHOOK_URL="https://chat.googleapis.com/v1/spaces/AAQAlYSxQ48/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=COURGwB1cADoPIs8ntkUCO7-laFiICdTClvDxf1gdlw"
-          FILE_LIST=$(echo "$CHANGED_FILES" | sed 's/^/- /')
-
-          # Build JSON payload
-          JSON_PAYLOAD=$(cat <<EOF
+          
+          # Convert pipe-separated list to HTML line breaks
+          FILE_LIST=$(echo "$CHANGED_FILES" | tr '|' '\n')
+          
+          # Create JSON payload
+          cat > payload.json <<'JSONEOF'
 {
   "cards": [
     {
@@ -60,7 +69,7 @@ jobs:
           "widgets": [
             {
               "textParagraph": {
-                "text": "$(echo "$FILE_LIST" | sed ':a;N;$!ba;s/\n/<br>/g')"
+                "text": "FILE_LIST_PLACEHOLDER"
               }
             }
           ]
@@ -70,7 +79,7 @@ jobs:
           "widgets": [
             {
               "textParagraph": {
-                "text": "<b>Repository:</b> $REPO<br><b>Branch:</b> $BRANCH<br><b>Author:</b> $AUTHOR (<$EMAIL>)<br><b>Message:</b> $COMMIT_MSG<br><b>Time:</b> $TIME"
+                "text": "<b>Repository:</b> REPO_PLACEHOLDER<br><b>Branch:</b> BRANCH_PLACEHOLDER<br><b>Commit:</b> COMMIT_SHA_PLACEHOLDER<br><b>Author:</b> AUTHOR_PLACEHOLDER<br><b>Email:</b> EMAIL_PLACEHOLDER<br><b>Message:</b> COMMIT_MSG_PLACEHOLDER<br><b>Time:</b> TIME_PLACEHOLDER"
               }
             }
           ]
@@ -88,13 +97,26 @@ jobs:
     }
   ]
 }
-EOF
-)
-
+JSONEOF
+          
+          # Replace placeholders
+          sed -i "s|FILE_LIST_PLACEHOLDER|${FILE_LIST//$'\n'/<br>}|g" payload.json
+          sed -i "s|REPO_PLACEHOLDER|$REPO|g" payload.json
+          sed -i "s|BRANCH_PLACEHOLDER|$BRANCH|g" payload.json
+          sed -i "s|COMMIT_SHA_PLACEHOLDER|$COMMIT_SHA|g" payload.json
+          sed -i "s|AUTHOR_PLACEHOLDER|$AUTHOR|g" payload.json
+          sed -i "s|EMAIL_PLACEHOLDER|$EMAIL|g" payload.json
+          sed -i "s|COMMIT_MSG_PLACEHOLDER|$COMMIT_MSG|g" payload.json
+          sed -i "s|TIME_PLACEHOLDER|$TIME|g" payload.json
+          
           # Send to Google Chat
-          curl -X POST -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD" \
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d @payload.json \
             "$WEBHOOK_URL"
-
-      - name: Notification Sent
-        run: echo "Google Chat notification sent successfully!"
+          
+          echo "Notification sent!"
+      
+      - name: Notification Status
+        if: always()
+        run: echo "✅ Workflow completed"
