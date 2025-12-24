@@ -1,5 +1,6 @@
 package com.example.cryptoloyalty.services;
-import com.clickhouse.client.internal.google.gson.Gson;
+//import com.clickhouse.client.internal.google.gson.Gson;
+import com.google.gson.Gson;
 import com.example.cryptoloyalty.entity.WalletEntity;
 import com.example.cryptoloyalty.repositories.WalletRepository;
 import com.example.cryptoloyalty.util.Constants;
